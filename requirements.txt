@@ -3,3 +3,4 @@ pandas
 pulp
 joblib
 requests
+xgboost
