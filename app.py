@@ -9,7 +9,7 @@ from pulp import LpProblem, LpMaximize, LpVariable, lpSum, PULP_CBC_CMD
 API_KEY = "49b3a4534bff42d590f2ceba0ae69162"
 
 # Set season and date dynamically
-SEASON = "2024"
+SEASON = "2025"
 GAME_DATE = datetime.today().strftime('%Y-%m-%d')
 
 # Load the trained model (Make sure the path is correct)
@@ -73,7 +73,7 @@ def fetch_player_stats(date=GAME_DATE, selected_slate=None):
         df.fillna(0, inplace=True)  # Replace NaNs with 0
 
         # Exclude specific players by name
-        excluded_players = ["Damion Baugh", "Jahlil Okafor", "Alex Len", "Markelle Fultz", "Jaylen Nowell", "Lonnie Walker IV", "Killian Hayes", "Jahmir Young", "Moses Brown", "Lamar Stevens"]
+        excluded_players = ["Damion Baugh", "Jahlil Okafor", "Alex Len", "Markelle Fultz", "Jaylen Nowell", "Lonnie Walker IV", "Killian Hayes", "Jahmir Young", "Moses Brown", "Lamar Stevens", "Javonte Green", "Jalen McDaniels"]
         df = df[~df["name"].isin(excluded_players)]  # Exclude players based on their names
 
         return df
@@ -125,7 +125,6 @@ def merge_dfs_salary(merged_data, selected_slate):
     return merged_data
 
 
-
 # Merge game odds into the player data
 def merge_game_odds(game_odds, merged_data):
     """Merge game odds into the player data"""
@@ -150,8 +149,11 @@ def merge_game_odds(game_odds, merged_data):
     return merged_data
 
 
+from sklearn.preprocessing import StandardScaler
+
+
 def calculate_additional_features(merged_data):
-    """Calculate and add UsageRate, team pace, offensive rating, and defensive rating"""
+    """Calculate and add UsageRate, team pace, offensive rating, defensive rating, and interaction features"""
 
     # Calculate UsageRate
     merged_data["UsageRate"] = (merged_data["FieldGoalsAttempted"] + 0.44 * merged_data["FreeThrowsAttempted"] +
@@ -185,6 +187,20 @@ def calculate_additional_features(merged_data):
     # Calculate defensive rating based on available stats like steals, blocks, and defensive efficiency
     merged_data["defensive_rating"] = (merged_data["Steals"] + merged_data["BlockedShots"]) / merged_data["Minutes"]
 
+    # Calculate points per minute
+    merged_data["points_per_minute"] = merged_data["Points"] / merged_data["Minutes"]
+
+    # Scale the spread and total points (important for their impact on model learning)
+    scaler = StandardScaler()
+
+    # Scale spread and total_points
+    merged_data['scaled_spread'] = scaler.fit_transform(merged_data[['spread']])
+    merged_data['scaled_total_points'] = scaler.fit_transform(merged_data[['total_points']])
+
+    # Create interaction features
+    merged_data['spread_team_pace'] = merged_data['scaled_spread'] * merged_data['team_pace']
+    merged_data['spread_total_points'] = merged_data['scaled_spread'] * merged_data['scaled_total_points']
+
     return merged_data
 
 
@@ -193,9 +209,9 @@ def generate_projections(merged_data, selected_slate):
     if merged_data is None:
         return None
 
-        # If more than 200 players, limit to top 190 by FantasyPoints
-        if len(merged_data) > 200:
-            merged_data = merged_data.nlargest(180, 'FantasyPoints')  # Take the top 190 players based on FantasyPoints
+    # If more than 200 players, limit to top 190 by FantasyPoints
+    if len(merged_data) > 200:
+        merged_data = merged_data.nlargest(180, 'FantasyPoints')  # Take the top 190 players based on FantasyPoints
 
     # Calculate the necessary additional features
     merged_data = calculate_additional_features(merged_data)
@@ -212,8 +228,10 @@ def generate_projections(merged_data, selected_slate):
     # Reorder the merged data to match the model's feature order
     merged_data_for_model = merged_data[model_features]
 
+
     # Generate projections using the model
     projections = model.predict(merged_data_for_model)
+
 
     # Use .loc[] to avoid SettingWithCopyWarning
     merged_data.loc[:, "FantasyPoints"] = projections
@@ -233,11 +251,10 @@ def generate_projections(merged_data, selected_slate):
     return merged_data
 
 
+
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, PULP_CBC_CMD
 import time
 import pandas as pd
-
-from pulp import LpProblem, LpMaximize, LpVariable, lpSum, PULP_CBC_CMD
 
 def optimize_lineup(players, salary_cap=50000, roster_size=8):
     st.write("Starting optimization...")
@@ -402,7 +419,6 @@ else:
                     st.write(f"**Total Fantasy Points**: {total_fantasy_points}")
                 else:
                     st.error("No optimal lineup found. Please adjust your data or constraints.")
-
 
 
 
