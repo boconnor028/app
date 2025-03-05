@@ -73,7 +73,7 @@ def fetch_player_stats(date=GAME_DATE, selected_slate=None):
         df.fillna(0, inplace=True)  # Replace NaNs with 0
 
         # Exclude specific players by name
-        excluded_players = ["Damion Baugh", "Tyson Etienne","Jahlil Okafor", "Jamaree Bouyea", "MarJon Beauchamp", "David Roddy", "Patrick Baldwin Jr.", "Alex Len", "Skal Labissiere", "Markelle Fultz", "Jaylen Nowell", "Lamar Stevens", "Jalen McDaniels", "Jalen Crutcher"]
+        excluded_players = ["Tyson Etienne","Jahlil Okafor", "Jamaree Bouyea", "MarJon Beauchamp", "David Roddy", "Patrick Baldwin Jr.", "Alex Len", "Jaylen Nowell", "Jalen Crutcher"]
         df = df[~df["name"].isin(excluded_players)]  # Exclude players based on their names
 
         return df
